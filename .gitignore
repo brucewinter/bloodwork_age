@@ -1,0 +1,14 @@
+# Data files (containing personal medical info)
+bloodwork.csv
+debug_markers.txt
+markers.txt
+output_url.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDEs
+.vscode/
+.idea/
