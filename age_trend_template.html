@@ -14,27 +14,19 @@
             --primary: #38bdf8;
             --secondary: #818cf8;
             --accent: #f472b6;
+            --success: #4ade80;
+            --warning: #fbbf24;
         }
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: 'Outfit', sans-serif;
             margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
             padding: 20px;
         }
         .container {
-            width: 100%;
-            max-width: 1000px;
-            background: var(--card-bg);
-            padding: 40px;
-            border-radius: 24px;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 1200px;
+            margin: 0 auto;
         }
         h1 {
             font-weight: 600;
@@ -43,11 +35,27 @@
             background: linear-gradient(to right, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            text-align: center;
         }
         p.subtitle {
             color: #94a3b8;
             margin-bottom: 40px;
             font-size: 1.1rem;
+            text-align: center;
+        }
+        .chart-section {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-color);
         }
         .chart-container {
             position: relative;
@@ -58,12 +66,12 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            margin-top: 40px;
+            margin-top: 20px;
         }
         .stat-card {
             background: rgba(255, 255, 255, 0.05);
             padding: 20px;
-            border-radius: 16px;
+            border-radius: 12px;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
@@ -72,62 +80,184 @@
             font-weight: 600;
             color: var(--primary);
         }
+        .stat-value.positive {
+            color: var(--success);
+        }
+        .stat-value.negative {
+            color: var(--accent);
+        }
         .stat-label {
             color: #94a3b8;
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            margin-top: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Bio-Age Trends</h1>
-        <p class="subtitle">Historical analysis of Humanity's Bortz Biological Age</p>
+        <h1>Biological Age Analysis</h1>
+        <p class="subtitle">Tracking your biological vs chronological age over time</p>
 
-        <div class="chart-container">
-            <canvas id="ageChart"></canvas>
+        <!-- Biological Age Chart -->
+        <div class="chart-section">
+            <div class="chart-title">Biological Age Over Time</div>
+            <div class="chart-container">
+                <canvas id="ageChart"></canvas>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="minBioAge">-</div>
+                    <div class="stat-label">Lowest Bio-Age</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="maxBioAge">-</div>
+                    <div class="stat-label">Highest Bio-Age</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgBioAge">-</div>
+                    <div class="stat-label">Average Bio-Age</div>
+                </div>
+            </div>
         </div>
 
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-value" id="minAge">-</div>
-                <div class="stat-label">Lowest Bio-Age</div>
+        <!-- Age Delta Chart -->
+        <div class="chart-section">
+            <div class="chart-title">Age Delta (Biological - Chronological)</div>
+            <div class="chart-container">
+                <canvas id="deltaChart"></canvas>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" id="maxAge">-</div>
-                <div class="stat-label">Highest Bio-Age</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="avgAge">-</div>
-                <div class="stat-label">Average Bio-Age</div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value positive" id="bestDelta">-</div>
+                    <div class="stat-label">Best Delta</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value negative" id="worstDelta">-</div>
+                    <div class="stat-label">Worst Delta</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgDelta">-</div>
+                    <div class="stat-label">Average Delta</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="currentDelta">-</div>
+                    <div class="stat-label">Current Delta</div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const dates = {{DATES_JSON}};
-        const ages = {{AGES_JSON}};
+        const bioAges = {{BIO_AGES_JSON}};
+        const chronAges = {{CHRON_AGES_JSON}};
+        const deltas = {{DELTAS_JSON}};
 
-        const ctx = document.getElementById('ageChart').getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
-        gradient.addColorStop(1, 'rgba(56, 189, 248, 0)');
+        // Biological Age Chart
+        const ctx1 = document.getElementById('ageChart').getContext('2d');
+        const gradient1 = ctx1.createLinearGradient(0, 0, 0, 400);
+        gradient1.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+        gradient1.addColorStop(1, 'rgba(56, 189, 248, 0)');
 
-        new Chart(ctx, {
+        const gradient2 = ctx1.createLinearGradient(0, 0, 0, 400);
+        gradient2.addColorStop(0, 'rgba(129, 140, 248, 0.3)');
+        gradient2.addColorStop(1, 'rgba(129, 140, 248, 0)');
+
+        new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Biological Age',
+                        data: bioAges,
+                        borderColor: '#38bdf8',
+                        backgroundColor: gradient1,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#38bdf8',
+                        pointBorderColor: '#0f172a',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 7,
+                    },
+                    {
+                        label: 'Chronological Age',
+                        data: chronAges,
+                        borderColor: '#818cf8',
+                        backgroundColor: gradient2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#818cf8',
+                        pointBorderColor: '#0f172a',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 6,
+                        borderDash: [5, 5],
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: '#f8fafc',
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#38bdf8',
+                        bodyColor: '#f8fafc',
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: true
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#64748b' },
+                        title: {
+                            display: true,
+                            text: 'Age (years)',
+                            color: '#94a3b8'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Delta Chart
+        const ctx2 = document.getElementById('deltaChart').getContext('2d');
+
+        // Color points based on whether delta is positive or negative
+        const pointColors = deltas.map(d => d >= 0 ? '#f472b6' : '#4ade80');
+        const borderColors = deltas.map(d => d >= 0 ? '#f472b6' : '#4ade80');
+
+        new Chart(ctx2, {
             type: 'line',
             data: {
                 labels: dates,
                 datasets: [{
-                    label: 'Biological Age',
-                    data: ages,
-                    borderColor: '#38bdf8',
-                    backgroundColor: gradient,
+                    label: 'Age Delta',
+                    data: deltas,
+                    borderColor: '#fbbf24',
+                    backgroundColor: 'rgba(251, 191, 36, 0.1)',
                     fill: true,
                     tension: 0.4,
                     pointRadius: 6,
-                    pointBackgroundColor: '#38bdf8',
-                    pointBorderColor: '#0f172a',
+                    pointBackgroundColor: pointColors,
+                    pointBorderColor: borderColors,
                     pointBorderWidth: 2,
                     pointHoverRadius: 8,
                 }]
@@ -139,11 +269,18 @@
                     legend: { display: false },
                     tooltip: {
                         backgroundColor: '#1e293b',
-                        titleColor: '#38bdf8',
+                        titleColor: '#fbbf24',
                         bodyColor: '#f8fafc',
                         padding: 12,
                         cornerRadius: 8,
-                        displayColors: false
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                const sign = value >= 0 ? '+' : '';
+                                return 'Delta: ' + sign + value.toFixed(1) + ' years';
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -153,16 +290,36 @@
                     },
                     y: {
                         grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                        ticks: { color: '#64748b' }
+                        ticks: {
+                            color: '#64748b',
+                            callback: function(value) {
+                                return (value >= 0 ? '+' : '') + value;
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Years (Bio - Chrono)',
+                            color: '#94a3b8'
+                        }
                     }
                 }
             }
         });
 
         // Calculate and display stats
-        document.getElementById('minAge').innerText = Math.min(...ages).toFixed(1);
-        document.getElementById('maxAge').innerText = Math.max(...ages).toFixed(1);
-        document.getElementById('avgAge').innerText = (ages.reduce((a, b) => a + b, 0) / ages.length).toFixed(1);
+        document.getElementById('minBioAge').innerText = Math.min(...bioAges).toFixed(1);
+        document.getElementById('maxBioAge').innerText = Math.max(...bioAges).toFixed(1);
+        document.getElementById('avgBioAge').innerText = (bioAges.reduce((a, b) => a + b, 0) / bioAges.length).toFixed(1);
+
+        const minDelta = Math.min(...deltas);
+        const maxDelta = Math.max(...deltas);
+        const avgDelta = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+        const currentDelta = deltas[deltas.length - 1];
+
+        document.getElementById('bestDelta').innerText = (minDelta >= 0 ? '+' : '') + minDelta.toFixed(1);
+        document.getElementById('worstDelta').innerText = (maxDelta >= 0 ? '+' : '') + maxDelta.toFixed(1);
+        document.getElementById('avgDelta').innerText = (avgDelta >= 0 ? '+' : '') + avgDelta.toFixed(1);
+        document.getElementById('currentDelta').innerText = (currentDelta >= 0 ? '+' : '') + currentDelta.toFixed(1);
     </script>
 </body>
 </html>

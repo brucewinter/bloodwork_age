@@ -12,6 +12,7 @@ import os
 from typing import List, Tuple, Optional
 
 from logger_config import setup_logger
+from config import get_birthdate, calculate_age
 
 # Column names
 COL_DATE = 'Measurement Date'
@@ -23,25 +24,34 @@ MAX_REASONABLE_AGE = 150.0
 logger = setup_logger(__name__)
 
 
-def load_age_data(csv_path: str) -> Tuple[List[str], List[float]]:
+def load_age_data(csv_path: str) -> Tuple[List[str], List[float], List[float], List[float]]:
     """
-    Load biological age data from CSV.
+    Load biological age data from CSV and calculate chronological ages.
 
     Args:
         csv_path: Path to the age history CSV file
 
     Returns:
-        Tuple of (dates list, ages list)
+        Tuple of (dates list, biological ages list, chronological ages list, delta list)
 
     Raises:
         FileNotFoundError: If CSV file doesn't exist
         ValueError: If CSV is missing required columns
     """
     dates = []
-    ages = []
+    bio_ages = []
+    chron_ages = []
+    deltas = []
 
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"File not found: {csv_path}")
+
+    # Get birthdate for chronological age calculation
+    try:
+        birthdate = get_birthdate()
+    except ValueError as e:
+        logger.error(f"Error loading birthdate: {e}")
+        raise
 
     skipped_invalid = 0
     skipped_zero = 0
@@ -54,28 +64,38 @@ def load_age_data(csv_path: str) -> Tuple[List[str], List[float]]:
             raise ValueError(f"CSV must contain '{COL_DATE}' and '{COL_BIO_AGE}' columns")
 
         for row in reader:
-            date = row[COL_DATE].strip()
+            date_str = row[COL_DATE].strip()
             try:
-                age = float(row[COL_BIO_AGE])
+                bio_age = float(row[COL_BIO_AGE])
 
                 # Filter out zero values (missing data)
-                if age == 0.0:
+                if bio_age == 0.0:
                     skipped_zero += 1
-                    logger.debug(f"Skipped zero age for date {date}")
+                    logger.debug(f"Skipped zero age for date {date_str}")
                     continue
 
                 # Filter out unreasonable outliers
-                if age < 0 or age > MAX_REASONABLE_AGE:
+                if bio_age < 0 or bio_age > MAX_REASONABLE_AGE:
                     skipped_outliers += 1
-                    logger.warning(f"Skipped outlier age {age} for date {date}")
+                    logger.warning(f"Skipped outlier age {bio_age} for date {date_str}")
                     continue
 
-                dates.append(date)
-                ages.append(age)
+                # Calculate chronological age at this measurement date
+                from datetime import datetime
+                measurement_date = datetime.strptime(date_str, '%Y-%m-%d')
+                chron_age = calculate_age(birthdate, measurement_date)
+
+                # Calculate delta (biological age - chronological age)
+                delta = round(bio_age - chron_age, 1)
+
+                dates.append(date_str)
+                bio_ages.append(bio_age)
+                chron_ages.append(chron_age)
+                deltas.append(delta)
 
             except (ValueError, KeyError) as e:
                 skipped_invalid += 1
-                logger.debug(f"Skipped invalid age value for date {date}: {e}")
+                logger.debug(f"Skipped invalid age value for date {date_str}: {e}")
                 continue
 
     if skipped_zero:
@@ -85,7 +105,7 @@ def load_age_data(csv_path: str) -> Tuple[List[str], List[float]]:
     if skipped_outliers:
         logger.warning(f"Skipped {skipped_outliers} outlier(s) (age < 0 or > {MAX_REASONABLE_AGE})")
 
-    return dates, ages
+    return dates, bio_ages, chron_ages, deltas
 
 
 def generate_visualization(
@@ -105,7 +125,7 @@ def generate_visualization(
         True if successful, False otherwise
     """
     try:
-        dates, ages = load_age_data(csv_path)
+        dates, bio_ages, chron_ages, deltas = load_age_data(csv_path)
     except FileNotFoundError as e:
         logger.error(str(e))
         return False
@@ -129,7 +149,9 @@ def generate_visualization(
 
     # Replace placeholders with JSON data
     html_content = template.replace('{{DATES_JSON}}', json.dumps(dates))
-    html_content = html_content.replace('{{AGES_JSON}}', json.dumps(ages))
+    html_content = html_content.replace('{{BIO_AGES_JSON}}', json.dumps(bio_ages))
+    html_content = html_content.replace('{{CHRON_AGES_JSON}}', json.dumps(chron_ages))
+    html_content = html_content.replace('{{DELTAS_JSON}}', json.dumps(deltas))
 
     # Write output
     try:

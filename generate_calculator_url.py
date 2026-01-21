@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any
 
 from biomarkers import BIOMARKER_MAP, BASE_URL, clean_value, is_valid_numeric, normalize_unit
 from logger_config import setup_logger
+from config import get_birthdate, calculate_age
 
 # Column names
 COL_BIOMARKER = 'Biomarker'
@@ -69,6 +70,12 @@ def generate_url(
                     continue
 
                 marker_id = BIOMARKER_MAP[raw_marker]
+
+                # Skip Age - we'll calculate it automatically from birthdate
+                if marker_id == 'age':
+                    logger.debug(f"Skipping Age from CSV - will calculate from birthdate")
+                    continue
+
                 raw_value = row[COL_VALUE].strip()
                 value = clean_value(raw_value)
 
@@ -120,6 +127,25 @@ def generate_url(
         return None
 
     logger.info(f"Successfully loaded {len(data)} biomarker(s)")
+
+    # Calculate age automatically from birthdate and most recent measurement date
+    try:
+        birthdate = get_birthdate()
+        # Find the most recent measurement date
+        most_recent_date = max(info['date'] for info in data.values())
+        calculated_age = calculate_age(birthdate, most_recent_date)
+
+        # Add age to the data
+        data['age'] = {
+            'value': str(calculated_age),
+            'unit': 'years',
+            'date': most_recent_date
+        }
+        logger.info(f"Calculated age at {most_recent_date.strftime('%Y-%m-%d')}: {calculated_age} years")
+    except ValueError as e:
+        logger.error(f"Error calculating age: {e}")
+        logger.error("Please update BIRTHDATE in config.py with format YYYY-MM-DD")
+        return None
 
     # Construct the query parameters
     params = []

@@ -14,6 +14,7 @@ from typing import List, Dict, Any, Optional
 
 from biomarkers import BIOMARKER_MAP, BASE_URL, clean_value, is_valid_numeric, normalize_unit
 from logger_config import setup_logger
+from config import get_birthdate, calculate_age
 
 # Column names
 COL_BIOMARKER = 'Biomarker'
@@ -82,6 +83,11 @@ def get_all_urls(csv_file: str, output_file: str) -> Optional[List[Dict[str, str
                 continue
 
             marker_id = BIOMARKER_MAP[raw_marker]
+
+            # Skip Age - we'll calculate it automatically from birthdate
+            if marker_id == 'age':
+                continue
+
             value = clean_value(row[COL_VALUE].strip())
 
             if not is_valid_numeric(value):
@@ -104,6 +110,23 @@ def get_all_urls(csv_file: str, output_file: str) -> Optional[List[Dict[str, str
         if not data:
             logger.warning(f"No valid data for date {cutoff_str}, skipping")
             continue
+
+        # Calculate age automatically from birthdate and cutoff date
+        try:
+            birthdate = get_birthdate()
+            calculated_age = calculate_age(birthdate, cutoff_date)
+
+            # Add age to the data
+            data['age'] = {
+                'value': str(calculated_age),
+                'unit': 'years',
+                'date': cutoff_date
+            }
+            logger.debug(f"Calculated age for {cutoff_str}: {calculated_age} years")
+        except ValueError as e:
+            logger.error(f"Error calculating age: {e}")
+            logger.error("Please update BIRTHDATE in config.py with format YYYY-MM-DD")
+            return None
 
         # Construct URL parameters
         params = []
