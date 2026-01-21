@@ -1,115 +1,93 @@
+"""
+Generate Bortz Blood Age Calculator URL from bloodwork CSV data.
+
+This script processes bloodwork measurements from a CSV file and generates
+a URL for the Bortz Blood Age Calculator with the latest biomarker values.
+"""
+
+import argparse
 import csv
 import urllib.parse
 from datetime import datetime
+from typing import Optional, Dict, Any
 
-# Path to the CSV file
-CSV_FILE = 'bloodwork.csv'
-BASE_URL = 'https://www.longevity-tools.com/humanitys-bortz-blood-age#?'
+from biomarkers import BIOMARKER_MAP, BASE_URL, clean_value, is_valid_numeric, normalize_unit
+from logger_config import setup_logger
 
-# Mapping of CSV Biomarker names to Bortz Calculator IDs
-# This ensures only the required 22 markers are included in the URL.
-BIOMARKER_MAP = {
-    "Age": "age",
-    "Albumin": "S-albumin",
-    "S-albumin": "S-albumin",
-    "ALP": "S-ALP",
-    "S-ALP": "S-ALP",
-    "Urea": "S-urea",
-    "S-urea": "S-urea",
-    "BUN": "S-urea",
-    "Cholesterol": "S-cholesterol",
-    "Total Cholesterol": "S-cholesterol",
-    "S-cholesterol": "S-cholesterol",
-    "Creatinine": "S-creatinine",
-    "S-creatinine": "S-creatinine",
-    "Cystatin C": "S-cystatin-C",
-    "S-cystatin-C": "S-cystatin-C",
-    "HbA1c": "B-HbA1c",
-    "B-HbA1c": "B-HbA1c",
-    "hsCRP": "S-hsCRP",
-    "hs-CRP": "S-hsCRP",
-    "S-hsCRP": "S-hsCRP",
-    "GGT": "S-GGT",
-    "S-GGT": "S-GGT",
-    "Red Blood Cell Count": "RBC", 
-    "RBC": "RBC",
-    "MCV": "MCV",
-    "RDW": "RDW",
-    "RDW (RDW-CV)": "RDW",
-    "RDW-SD": "RDW",
-    "RDW-CV": "RDW",
-    "Absolute Monocytes": "MONOabs",
-    "MONOabs": "MONOabs",
-    "Monocytes (Absolute)": "MONOabs",
-    "Absolute Neutrophils": "NEUabs",
-    "NEUabs": "NEUabs",
-    "Neutrophils (Absolute)": "NEUabs",
-    "LYM": "LYM",
-    "Lymphocytes (%)": "LYM",
-    "ALT": "S-ALT",
-    "S-ALT": "S-ALT",
-    "SHBG": "S-SHBG",
-    "S-SHBG": "S-SHBG",
-    "Vitamin D (25-OH)": "S-25-OH-D",
-    "Vitamin D - 25(OH)D": "S-25-OH-D",
-    "Vitamin D3 (25-OH D3)": "S-25-OH-D",
-    "Vitamin D, 25-Hydroxy": "S-25-OH-D",
-    "S-25-OH-D": "S-25-OH-D",
-    "Glucose": "S-glucose",
-    "S-glucose": "S-glucose",
-    "Glucose (Fasting)": "S-glucose",
-    "MCH": "MCH",
-    "ApoA1": "S-ApoA1",
-    "S-ApoA1": "S-ApoA1",
-    "Apolipoprotein A1": "S-ApoA1"
-}
+# Column names
+COL_BIOMARKER = 'Biomarker'
+COL_VALUE = 'Value'
+COL_UNIT = 'Unit'
+COL_DATE = 'Measurement Date'
 
-def clean_value(val):
-    """Removes non-numeric prefixes like '<' or '>'."""
-    if not val:
-        return ""
-    # Remove common prefixes
-    cleaned = val.replace('<', '').replace('>', '').replace('=', '').strip()
-    return cleaned
+logger = setup_logger(__name__)
 
-import argparse
 
-def generate_url(cutoff_date_str=None):
-    data = {}
-    
+def generate_url(
+    csv_file: str,
+    output_file: str,
+    cutoff_date_str: Optional[str] = None
+) -> Optional[str]:
+    """
+    Generate Bortz Blood Age Calculator URL from CSV data.
+
+    Args:
+        csv_file: Path to the bloodwork CSV file
+        output_file: Path to save the generated URL
+        cutoff_date_str: Optional cutoff date (YYYY-MM-DD). Only uses data on or before this date.
+
+    Returns:
+        The generated URL string, or None if generation failed
+    """
+    data: Dict[str, Dict[str, Any]] = {}
+
     cutoff_date = None
     if cutoff_date_str:
         try:
             cutoff_date = datetime.strptime(cutoff_date_str, '%Y-%m-%d')
+            logger.info(f"Using cutoff date: {cutoff_date_str}")
         except ValueError:
-            print(f"Error: Invalid date format '{cutoff_date_str}'. Please use YYYY-MM-DD.")
-            return
+            logger.error(f"Invalid date format '{cutoff_date_str}'. Please use YYYY-MM-DD.")
+            return None
 
     try:
-        with open(CSV_FILE, mode='r', encoding='utf-8') as f:
+        with open(csv_file, mode='r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
+            # Strip whitespace from field names
             reader.fieldnames = [fn.strip() for fn in reader.fieldnames]
-            
+
+            skipped_unknown = set()
+            skipped_invalid = 0
+            skipped_date_errors = 0
+
             for row in reader:
-                raw_marker = row['Biomarker'].strip()
+                raw_marker = row[COL_BIOMARKER].strip()
+
+                # Skip unknown biomarkers
                 if raw_marker not in BIOMARKER_MAP:
+                    skipped_unknown.add(raw_marker)
                     continue
-                
+
                 marker_id = BIOMARKER_MAP[raw_marker]
-                raw_value = row['Value'].strip()
+                raw_value = row[COL_VALUE].strip()
                 value = clean_value(raw_value)
-                
-                if not value or value.lower() == "data not available":
+
+                # Validate numeric value
+                if not is_valid_numeric(value):
+                    skipped_invalid += 1
+                    logger.debug(f"Skipped invalid value for {raw_marker}: '{raw_value}'")
                     continue
-                    
-                unit = row['Unit'].strip()
-                date_str = row['Measurement Date'].strip()
-                
+
+                unit = row[COL_UNIT].strip()
+                date_str = row[COL_DATE].strip()
+
                 try:
                     date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                 except ValueError:
+                    skipped_date_errors += 1
+                    logger.warning(f"Invalid date format for {raw_marker}: '{date_str}'")
                     continue
-                
+
                 # Filter by cutoff date if provided
                 if cutoff_date and date_obj > cutoff_date:
                     continue
@@ -121,44 +99,102 @@ def generate_url(cutoff_date_str=None):
                         'unit': unit,
                         'date': date_obj
                     }
+
+            # Log skipped data
+            if skipped_unknown:
+                logger.info(f"Skipped {len(skipped_unknown)} unknown biomarker(s): {', '.join(sorted(skipped_unknown))}")
+            if skipped_invalid:
+                logger.info(f"Skipped {skipped_invalid} row(s) with invalid values")
+            if skipped_date_errors:
+                logger.warning(f"Skipped {skipped_date_errors} row(s) with invalid dates")
+
     except FileNotFoundError:
-        print(f"Error: {CSV_FILE} not found.")
-        return
+        logger.error(f"File not found: {csv_file}")
+        return None
+    except KeyError as e:
+        logger.error(f"Missing required column in CSV: {e}")
+        return None
 
     if not data:
-        print(f"No valid biomarkers found in CSV {'before ' + cutoff_date_str if cutoff_date_str else ''}.")
-        return
+        logger.warning(f"No valid biomarkers found in CSV {'before ' + cutoff_date_str if cutoff_date_str else ''}")
+        return None
+
+    logger.info(f"Successfully loaded {len(data)} biomarker(s)")
 
     # Construct the query parameters
     params = []
-    
+
     # Sort markers by ID for consistent URL generation
     for marker_id in sorted(data.keys()):
         info = data[marker_id]
-        # Special unit handling for Bortz URL
-        unit = info['unit']
-        if unit == '%':
-            unit = '%25' # Double encode for URL
-            
+        unit = normalize_unit(info['unit'])
         formatted_value = f"{info['value']}_{unit}"
-        # We use quote with safe='' to ensure / becomes %2F
+        # Use quote with safe='' to ensure proper URL encoding
         params.append(f"{marker_id}={urllib.parse.quote(formatted_value, safe='')}")
 
     final_url = BASE_URL + '&'.join(params)
-    
-    with open('output_url.txt', 'w') as f:
-        f.write(final_url)
-    
+
+    # Save to file
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(final_url)
+        logger.info(f"URL saved to: {output_file}")
+    except IOError as e:
+        logger.error(f"Failed to write output file: {e}")
+        return None
+
     date_context = f" (data on or before {cutoff_date_str})" if cutoff_date_str else ""
-    print(f"\n--- Generated Bortz Blood Age Calculator URL{date_context} ---")
-    print(final_url)
-    print("--------------------------------------------------\n")
-    print("URL has also been saved to output_url.txt")
+    logger.info(f"Generated Bortz Blood Age Calculator URL{date_context}")
+    print(f"\n{final_url}\n")
+
     return final_url
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Generate Bortz Blood Age Calculator URL from CSV.')
-    parser.add_argument('--date', type=str, help='Cutoff date (YYYY-MM-DD). Only uses data on or before this date.', default=None)
+
+def main() -> None:
+    """Main entry point for the script."""
+    parser = argparse.ArgumentParser(
+        description='Generate Bortz Blood Age Calculator URL from bloodwork CSV.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python generate_calculator_url.py
+  python generate_calculator_url.py --date 2024-12-31
+  python generate_calculator_url.py --input data.csv --output url.txt
+  python generate_calculator_url.py --verbose
+        """
+    )
+    parser.add_argument(
+        '--date',
+        type=str,
+        help='Cutoff date (YYYY-MM-DD). Only uses data on or before this date.',
+        default=None
+    )
+    parser.add_argument(
+        '--input',
+        type=str,
+        help='Path to input CSV file (default: bloodwork.csv)',
+        default='bloodwork.csv'
+    )
+    parser.add_argument(
+        '--output',
+        type=str,
+        help='Path to output URL file (default: output_url.txt)',
+        default='output_url.txt'
+    )
+    parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose logging'
+    )
+
     args = parser.parse_args()
-    
-    generate_url(args.date)
+
+    # Configure logging level
+    if args.verbose:
+        logger.setLevel('DEBUG')
+
+    generate_url(args.input, args.output, args.date)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,207 +1,194 @@
+"""
+Generate interactive HTML visualization of biological age trends.
+
+This script reads historical biological age data and creates an interactive
+Chart.js dashboard showing trends over time.
+"""
+
+import argparse
 import csv
 import json
 import os
+from typing import List, Tuple, Optional
 
-def generate_visualization(csv_path, html_output):
+from logger_config import setup_logger
+
+# Column names
+COL_DATE = 'Measurement Date'
+COL_BIO_AGE = 'Bortz Biological Age'
+
+# Outlier detection threshold
+MAX_REASONABLE_AGE = 150.0
+
+logger = setup_logger(__name__)
+
+
+def load_age_data(csv_path: str) -> Tuple[List[str], List[float]]:
+    """
+    Load biological age data from CSV.
+
+    Args:
+        csv_path: Path to the age history CSV file
+
+    Returns:
+        Tuple of (dates list, ages list)
+
+    Raises:
+        FileNotFoundError: If CSV file doesn't exist
+        ValueError: If CSV is missing required columns
+    """
     dates = []
     ages = []
-    
-    if not os.path.exists(csv_path):
-        print(f"Error: {csv_path} not found.")
-        return
 
-    with open(csv_path, mode='r') as f:
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"File not found: {csv_path}")
+
+    skipped_invalid = 0
+    skipped_zero = 0
+    skipped_outliers = 0
+
+    with open(csv_path, mode='r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
+
+        if COL_DATE not in reader.fieldnames or COL_BIO_AGE not in reader.fieldnames:
+            raise ValueError(f"CSV must contain '{COL_DATE}' and '{COL_BIO_AGE}' columns")
+
         for row in reader:
-            date = row['Measurement Date']
+            date = row[COL_DATE].strip()
             try:
-                age = float(row['Bortz Biological Age'])
-                # Filter out 0.0 results (missing data)
-                if age > 0:
-                    dates.append(date)
-                    ages.append(age)
-            except ValueError:
+                age = float(row[COL_BIO_AGE])
+
+                # Filter out zero values (missing data)
+                if age == 0.0:
+                    skipped_zero += 1
+                    logger.debug(f"Skipped zero age for date {date}")
+                    continue
+
+                # Filter out unreasonable outliers
+                if age < 0 or age > MAX_REASONABLE_AGE:
+                    skipped_outliers += 1
+                    logger.warning(f"Skipped outlier age {age} for date {date}")
+                    continue
+
+                dates.append(date)
+                ages.append(age)
+
+            except (ValueError, KeyError) as e:
+                skipped_invalid += 1
+                logger.debug(f"Skipped invalid age value for date {date}: {e}")
                 continue
 
-    if not dates:
-        print("No valid data points found for visualization.")
-        return
+    if skipped_zero:
+        logger.info(f"Skipped {skipped_zero} row(s) with zero age values")
+    if skipped_invalid:
+        logger.info(f"Skipped {skipped_invalid} row(s) with invalid age values")
+    if skipped_outliers:
+        logger.warning(f"Skipped {skipped_outliers} outlier(s) (age < 0 or > {MAX_REASONABLE_AGE})")
 
-    # Use a modern, premium Chart.js template
-    html_template = f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bio-Age Trends</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {{
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-color: #f8fafc;
-            --primary: #38bdf8;
-            --secondary: #818cf8;
-            --accent: #f472b6;
-        }}
-        body {{
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Outfit', sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-        }}
-        .container {{
-            width: 100%;
-            max-width: 1000px;
-            background: var(--card-bg);
-            padding: 40px;
-            border-radius: 24px;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }}
-        h1 {{
-            font-weight: 600;
-            font-size: 2.5rem;
-            margin-bottom: 8px;
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }}
-        p.subtitle {{
-            color: #94a3b8;
-            margin-bottom: 40px;
-            font-size: 1.1rem;
-        }}
-        .chart-container {{
-            position: relative;
-            height: 400px;
-            width: 100%;
-        }}
-        .stats {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 40px;
-        }}
-        .stat-card {{
-            background: rgba(255, 255, 255, 0.05);
-            padding: 20px;
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }}
-        .stat-value {{
-            font-size: 2rem;
-            font-weight: 600;
-            color: var(--primary);
-        }}
-        .stat-label {{
-            color: #94a3b8;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Bio-Age Trends</h1>
-        <p class="subtitle">Historical analysis of Humanity's Bortz Biological Age</p>
-        
-        <div class="chart-container">
-            <canvas id="ageChart"></canvas>
-        </div>
+    return dates, ages
 
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-value" id="minAge">-</div>
-                <div class="stat-label">Lowest Bio-Age</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="maxAge">-</div>
-                <div class="stat-label">Highest Bio-Age</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="avgAge">-</div>
-                <div class="stat-label">Average Bio-Age</div>
-            </div>
-        </div>
-    </div>
 
-    <script>
-        const dates = {json.dumps(dates)};
-        const ages = {json.dumps(ages)};
-
-        const ctx = document.getElementById('ageChart').getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
-        gradient.addColorStop(1, 'rgba(56, 189, 248, 0)');
-
-        new Chart(ctx, {{
-            type: 'line',
-            data: {{
-                labels: dates,
-                datasets: [{{
-                    label: 'Biological Age',
-                    data: ages,
-                    borderColor: '#38bdf8',
-                    backgroundColor: gradient,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 6,
-                    pointBackgroundColor: '#38bdf8',
-                    pointBorderColor: '#0f172a',
-                    pointBorderWidth: 2,
-                    pointHoverRadius: 8,
-                }}]
-            }},
-            options: {{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {{
-                    legend: {{ display: false }},
-                    tooltip: {{
-                        backgroundColor: '#1e293b',
-                        titleColor: '#38bdf8',
-                        bodyColor: '#f8fafc',
-                        padding: 12,
-                        cornerRadius: 8,
-                        displayColors: false
-                    }}
-                }},
-                scales: {{
-                    x: {{
-                        grid: {{ display: false }},
-                        ticks: {{ color: '#64748b' }}
-                    }},
-                    y: {{
-                        grid: {{ color: 'rgba(255, 255, 255, 0.05)' }},
-                        ticks: {{ color: '#64748b' }}
-                    }}
-                }}
-            }}
-        }});
-
-        // Calculate and display stats
-        document.getElementById('minAge').innerText = Math.min(...ages).toFixed(1);
-        document.getElementById('maxAge').innerText = Math.max(...ages).toFixed(1);
-        document.getElementById('avgAge').innerText = (ages.reduce((a, b) => a + b, 0) / ages.length).toFixed(1);
-    </script>
-</body>
-</html>
+def generate_visualization(
+    csv_path: str,
+    html_output: str,
+    template_path: str = 'age_trend_template.html'
+) -> bool:
     """
-    
-    with open(html_output, 'w', encoding='utf-8') as f:
-        f.write(html_template)
-    print(f"Visualization generated: {html_output}")
+    Generate HTML visualization from age history data.
+
+    Args:
+        csv_path: Path to the age history CSV file
+        html_output: Path to save the generated HTML file
+        template_path: Path to the HTML template file
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        dates, ages = load_age_data(csv_path)
+    except FileNotFoundError as e:
+        logger.error(str(e))
+        return False
+    except ValueError as e:
+        logger.error(str(e))
+        return False
+
+    if not dates:
+        logger.error("No valid data points found for visualization")
+        return False
+
+    logger.info(f"Loaded {len(dates)} data point(s) for visualization")
+
+    # Read template
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template = f.read()
+    except FileNotFoundError:
+        logger.error(f"Template file not found: {template_path}")
+        return False
+
+    # Replace placeholders with JSON data
+    html_content = template.replace('{{DATES_JSON}}', json.dumps(dates))
+    html_content = html_content.replace('{{AGES_JSON}}', json.dumps(ages))
+
+    # Write output
+    try:
+        with open(html_output, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        logger.info(f"Visualization generated: {html_output}")
+        return True
+    except IOError as e:
+        logger.error(f"Failed to write output file: {e}")
+        return False
+
+
+def main() -> None:
+    """Main entry point for the script."""
+    parser = argparse.ArgumentParser(
+        description='Generate interactive HTML visualization of biological age trends.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python visualize_age.py
+  python visualize_age.py --input data.csv --output dashboard.html
+  python visualize_age.py --verbose
+        """
+    )
+    parser.add_argument(
+        '--input',
+        type=str,
+        help='Path to input age history CSV file (default: age_history.csv)',
+        default='age_history.csv'
+    )
+    parser.add_argument(
+        '--output',
+        type=str,
+        help='Path to output HTML file (default: age_trend.html)',
+        default='age_trend.html'
+    )
+    parser.add_argument(
+        '--template',
+        type=str,
+        help='Path to HTML template file (default: age_trend_template.html)',
+        default='age_trend_template.html'
+    )
+    parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose logging'
+    )
+
+    args = parser.parse_args()
+
+    # Configure logging level
+    if args.verbose:
+        logger.setLevel('DEBUG')
+
+    success = generate_visualization(args.input, args.output, args.template)
+
+    if not success:
+        exit(1)
+
 
 if __name__ == "__main__":
-    generate_visualization('age_history.csv', 'age_trend.html')
+    main()

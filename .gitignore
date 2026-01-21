@@ -1,14 +1,32 @@
 # Data files (containing personal medical info)
 bloodwork.csv
+
+# Generated output files
 debug_markers.txt
 markers.txt
 output_url.txt
+batch_urls.json
+age_trend.html
+unique_dates.txt
+
+# Backup files
+*~
+*.bak
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
+.DS_Store
