@@ -18,7 +18,7 @@
 .PARAMETER SkipSelenium
     Skip Selenium automation (use if age_history.csv is already up-to-date)
 
-.PARAMETER Verbose
+.PARAMETER VerboseLogging
     Enable verbose logging for all scripts
 
 .PARAMETER Headless
@@ -37,7 +37,7 @@
     Skip Selenium automation and just regenerate visualization
 
 .EXAMPLE
-    .\Run-BloodworkAnalysis.ps1 -Verbose -Headless
+    .\Run-BloodworkAnalysis.ps1 -VerboseLogging -Headless
     Run with verbose logging and headless browser
 #>
 
@@ -50,7 +50,7 @@ param(
 
     [switch]$SkipSelenium,
 
-    [switch]$Verbose,
+    [switch]$VerboseLogging,
 
     [switch]$Headless
 )
@@ -91,14 +91,15 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ScriptDir
 Write-Host "Working directory: $ScriptDir`n" -ForegroundColor Gray
 
-# Validate input CSV exists
-if (-not (Test-Path $InputCsv)) {
-    Write-Error-Custom "Input CSV file not found: $InputCsv"
-    Write-Host "`nPlease provide a valid CSV file path." -ForegroundColor Yellow
-    exit 1
+# Validate input CSV exists (only if we need it)
+if (-not $SkipUrlGeneration) {
+    if (-not (Test-Path $InputCsv)) {
+        Write-Error-Custom "Input CSV file not found: $InputCsv"
+        Write-Host "`nPlease provide a valid CSV file path." -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Success "Found input CSV: $InputCsv"
 }
-
-Write-Success "Found input CSV: $InputCsv"
 
 # Check Python is available
 try {
@@ -129,7 +130,7 @@ if ($configContent -match 'BIRTHDATE = "(\d{4}-\d{2}-\d{2})"') {
 }
 
 # Build verbose flag
-$verboseFlag = if ($Verbose) { "--verbose" } else { "" }
+$verboseFlag = if ($VerboseLogging) { "--verbose" } else { "" }
 
 # Step 1: Generate Batch URLs
 if (-not $SkipUrlGeneration) {

@@ -29,6 +29,12 @@ A Python toolkit for processing bloodwork data and calculating biological age us
 # Run in headless mode (no browser GUI)
 .\Run-BloodworkAnalysis.ps1 -Headless
 
+# Enable verbose logging
+.\Run-BloodworkAnalysis.ps1 -VerboseLogging
+
+# Combine options
+.\Run-BloodworkAnalysis.ps1 -InputCsv "data.csv" -Headless -VerboseLogging
+
 # Quick visualization update only
 .\Quick-Visualize.ps1
 ```
@@ -141,11 +147,11 @@ Complete pipeline automation with error handling, progress reporting, and colore
 # Headless browser automation (no GUI)
 .\Run-BloodworkAnalysis.ps1 -Headless
 
-# Verbose logging
-.\Run-BloodworkAnalysis.ps1 -Verbose
+# Enable verbose logging
+.\Run-BloodworkAnalysis.ps1 -VerboseLogging
 
 # Combine options
-.\Run-BloodworkAnalysis.ps1 -InputCsv "data.csv" -Headless -Verbose
+.\Run-BloodworkAnalysis.ps1 -InputCsv "data.csv" -Headless -VerboseLogging
 ```
 
 ### `Quick-Visualize.ps1`
