@@ -9,6 +9,11 @@ batch_urls.json
 age_trend.html
 unique_dates.txt
 
+# Levine PhenoAge output files
+levine_url.txt
+levine_batch_urls.json
+levine_age_history.csv
+
 # Backup files
 *~
 *.bak
