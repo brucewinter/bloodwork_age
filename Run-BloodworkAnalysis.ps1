@@ -24,9 +24,16 @@
 .PARAMETER Headless
     Run browser automation in headless mode (no GUI)
 
+.PARAMETER Help
+    Display this help message
+
 .EXAMPLE
     .\Run-BloodworkAnalysis.ps1
     Run complete workflow with default bloodwork.csv
+
+.EXAMPLE
+    .\Run-BloodworkAnalysis.ps1 -Help
+    Display full help documentation
 
 .EXAMPLE
     .\Run-BloodworkAnalysis.ps1 -InputCsv "my_bloodwork_2024.csv"
@@ -52,8 +59,16 @@ param(
 
     [switch]$VerboseLogging,
 
-    [switch]$Headless
+    [switch]$Headless,
+
+    [switch]$Help
 )
+
+# Handle -Help parameter
+if ($Help) {
+    Get-Help $MyInvocation.MyCommand.Path -Full
+    exit 0
+}
 
 # Color formatting functions
 function Write-Step {
@@ -95,7 +110,15 @@ Write-Host "Working directory: $ScriptDir`n" -ForegroundColor Gray
 if (-not $SkipUrlGeneration) {
     if (-not (Test-Path $InputCsv)) {
         Write-Error-Custom "Input CSV file not found: $InputCsv"
-        Write-Host "`nPlease provide a valid CSV file path." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Usage Examples:" -ForegroundColor Yellow
+        Write-Host "  .\Run-BloodworkAnalysis.ps1" -ForegroundColor Gray
+        Write-Host "  .\Run-BloodworkAnalysis.ps1 -InputCsv 'my_bloodwork.csv'" -ForegroundColor Gray
+        Write-Host "  .\Run-BloodworkAnalysis.ps1 -SkipUrlGeneration -SkipSelenium" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "For detailed help, run:" -ForegroundColor Cyan
+        Write-Host "  Get-Help .\Run-BloodworkAnalysis.ps1 -Full" -ForegroundColor White
+        Write-Host ""
         exit 1
     }
     Write-Success "Found input CSV: $InputCsv"

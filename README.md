@@ -35,6 +35,10 @@ A Python toolkit for processing bloodwork data and calculating biological age us
 # Combine options
 .\Run-BloodworkAnalysis.ps1 -InputCsv "data.csv" -Headless -VerboseLogging
 
+# Get help documentation
+.\Run-BloodworkAnalysis.ps1 -Help
+Get-Help .\Run-BloodworkAnalysis.ps1 -Full
+
 # Quick visualization update only
 .\Quick-Visualize.ps1
 ```
