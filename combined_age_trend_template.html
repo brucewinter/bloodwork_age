@@ -202,6 +202,14 @@
                 </div>
             </div>
 
+            <!-- Levine vs Bortz Comparison Chart -->
+            <div class="card">
+                <h2>Calculator Comparison (Levine PhenoAge - Bortz BioAge)</h2>
+                <div class="chart-container">
+                    <canvas id="calculatorComparisonChart"></canvas>
+                </div>
+            </div>
+
             <!-- Detailed Statistics -->
             <div class="card">
                 <h2>Calculator Comparison Statistics</h2>
@@ -506,6 +514,95 @@
                         title: {
                             display: true,
                             text: 'Age Delta (years)',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return (value >= 0 ? '+' : '') + value;
+                            }
+                        },
+                        grid: {
+                            color: function(context) {
+                                if (context.tick.value === 0) {
+                                    return 'rgba(0, 0, 0, 0.3)';
+                                }
+                                return 'rgba(0, 0, 0, 0.1)';
+                            }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Measurement Date',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+
+        // Calculator Comparison Chart (Levine - Bortz)
+        const calculatorDifferences = dates.map((date, i) => {
+            if (levinePhenoAges[i] === null || bortzBioAges[i] === null) {
+                return null;
+            }
+            return levinePhenoAges[i] - bortzBioAges[i];
+        });
+
+        const calculatorDiffColors = calculatorDifferences.map(diff => {
+            if (diff === null) return 'rgba(200, 200, 200, 0.6)';
+            return diff > 0 ? 'rgba(231, 76, 60, 0.8)' : 'rgba(52, 152, 219, 0.8)';
+        });
+
+        const calculatorComparisonCtx = document.getElementById('calculatorComparisonChart').getContext('2d');
+        new Chart(calculatorComparisonCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Levine - Bortz',
+                    data: calculatorDifferences,
+                    borderColor: 'rgba(155, 89, 182, 1)',
+                    backgroundColor: calculatorDiffColors,
+                    borderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: calculatorDiffColors,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.parsed.y === null) return 'No data';
+                                const value = context.parsed.y;
+                                const sign = value >= 0 ? '+' : '';
+                                const interpretation = value > 0
+                                    ? '(Levine higher)'
+                                    : value < 0
+                                    ? '(Bortz higher)'
+                                    : '(Equal)';
+                                return 'Difference: ' + sign + value.toFixed(1) + ' years ' + interpretation;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Age Difference (years)',
                             font: { size: 14, weight: 'bold' }
                         },
                         ticks: {
