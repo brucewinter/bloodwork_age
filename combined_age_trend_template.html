@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined Biological Age Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        .comparison-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .calculator-stats {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .calculator-stats.levine {
+            border-left-color: #e74c3c;
+        }
+
+        .calculator-stats h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-row .label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .stat-row .value {
+            color: #333;
+            font-weight: bold;
+        }
+
+        .positive {
+            color: #27ae60;
+        }
+
+        .negative {
+            color: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .comparison-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Combined Biological Age Dashboard</h1>
+            <p>Comparing Bortz Blood Age and Levine PhenoAge Calculators</p>
+        </div>
+
+        <div class="dashboard">
+            <!-- Age Comparison Chart -->
+            <div class="card">
+                <h2>Age Comparison Over Time</h2>
+                <div class="chart-container">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Bortz Delta Chart -->
+            <div class="card">
+                <h2>Bortz Biological Age Delta (Bio Age - Chronological Age)</h2>
+                <div class="chart-container">
+                    <canvas id="bortzDeltaChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Levine Delta Chart -->
+            <div class="card">
+                <h2>Levine Phenotypic Age Delta (Pheno Age - Chronological Age)</h2>
+                <div class="chart-container">
+                    <canvas id="levineDeltaChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Statistics -->
+            <div class="card">
+                <h2>Calculator Comparison Statistics</h2>
+                <div class="comparison-stats">
+                    <div class="calculator-stats bortz">
+                        <h3>Bortz Blood Age Calculator</h3>
+                        <div class="stat-row">
+                            <span class="label">Data Points:</span>
+                            <span class="value" id="bortz-count">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Latest Bio Age:</span>
+                            <span class="value" id="bortz-latest">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Average Bio Age:</span>
+                            <span class="value" id="bortz-avg">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Best Delta:</span>
+                            <span class="value" id="bortz-best">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Worst Delta:</span>
+                            <span class="value" id="bortz-worst">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Average Delta:</span>
+                            <span class="value" id="bortz-avg-delta">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Current Delta:</span>
+                            <span class="value" id="bortz-current">-</span>
+                        </div>
+                    </div>
+
+                    <div class="calculator-stats levine">
+                        <h3>Levine PhenoAge Calculator</h3>
+                        <div class="stat-row">
+                            <span class="label">Data Points:</span>
+                            <span class="value" id="levine-count">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Latest Pheno Age:</span>
+                            <span class="value" id="levine-latest">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Average Pheno Age:</span>
+                            <span class="value" id="levine-avg">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Best Delta:</span>
+                            <span class="value" id="levine-best">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Worst Delta:</span>
+                            <span class="value" id="levine-worst">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Average Delta:</span>
+                            <span class="value" id="levine-avg-delta">-</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="label">Current Delta:</span>
+                            <span class="value" id="levine-current">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data from Python
+        const dates = {{DATES_JSON}};
+        const bortzBioAges = {{BORTZ_BIO_AGES_JSON}};
+        const chronAges = {{CHRON_AGES_JSON}};
+        const bortzDeltas = {{BORTZ_DELTAS_JSON}};
+        const levinePhenoAges = {{LEVINE_PHENO_AGES_JSON}};
+        const levineDeltas = {{LEVINE_DELTAS_JSON}};
+
+        // Chart.js configuration for null values
+        Chart.defaults.spanGaps = true;
+
+        // Age Comparison Chart
+        const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+        new Chart(comparisonCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Chronological Age',
+                        data: chronAges,
+                        borderColor: 'rgba(155, 89, 182, 0.8)',
+                        backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Bortz Biological Age',
+                        data: bortzBioAges,
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Levine Phenotypic Age',
+                        data: levinePhenoAges,
+                        borderColor: 'rgba(231, 76, 60, 1)',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: { size: 13, weight: 'bold' },
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(1) + ' years';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Age (years)',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            font: { size: 12 }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Measurement Date',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            font: { size: 11 },
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+
+        // Bortz Delta Chart
+        const bortzDeltaColors = bortzDeltas.map(delta => {
+            if (delta === null) return 'rgba(200, 200, 200, 0.6)';
+            return delta < 0 ? 'rgba(46, 204, 113, 0.8)' : 'rgba(231, 76, 60, 0.8)';
+        });
+
+        const bortzDeltaCtx = document.getElementById('bortzDeltaChart').getContext('2d');
+        new Chart(bortzDeltaCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Bortz Age Delta',
+                    data: bortzDeltas,
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    backgroundColor: bortzDeltaColors,
+                    borderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: bortzDeltaColors,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.parsed.y === null) return 'No data';
+                                const value = context.parsed.y;
+                                const sign = value >= 0 ? '+' : '';
+                                return 'Delta: ' + sign + value.toFixed(1) + ' years';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Age Delta (years)',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return (value >= 0 ? '+' : '') + value;
+                            }
+                        },
+                        grid: {
+                            color: function(context) {
+                                if (context.tick.value === 0) {
+                                    return 'rgba(0, 0, 0, 0.3)';
+                                }
+                                return 'rgba(0, 0, 0, 0.1)';
+                            }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Measurement Date',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+
+        // Levine Delta Chart
+        const levineDeltaColors = levineDeltas.map(delta => {
+            if (delta === null) return 'rgba(200, 200, 200, 0.6)';
+            return delta < 0 ? 'rgba(46, 204, 113, 0.8)' : 'rgba(231, 76, 60, 0.8)';
+        });
+
+        const levineDeltaCtx = document.getElementById('levineDeltaChart').getContext('2d');
+        new Chart(levineDeltaCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Levine Age Delta',
+                    data: levineDeltas,
+                    borderColor: 'rgba(231, 76, 60, 1)',
+                    backgroundColor: levineDeltaColors,
+                    borderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: levineDeltaColors,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.parsed.y === null) return 'No data';
+                                const value = context.parsed.y;
+                                const sign = value >= 0 ? '+' : '';
+                                return 'Delta: ' + sign + value.toFixed(1) + ' years';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Age Delta (years)',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return (value >= 0 ? '+' : '') + value;
+                            }
+                        },
+                        grid: {
+                            color: function(context) {
+                                if (context.tick.value === 0) {
+                                    return 'rgba(0, 0, 0, 0.3)';
+                                }
+                                return 'rgba(0, 0, 0, 0.1)';
+                            }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Measurement Date',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+
+        // Calculate and display statistics
+        function calculateStats(ages, deltas, prefix) {
+            const validAges = ages.filter(a => a !== null);
+            const validDeltas = deltas.filter(d => d !== null);
+
+            if (validAges.length === 0) {
+                document.getElementById(`${prefix}-count`).textContent = '0';
+                return;
+            }
+
+            const count = validAges.length;
+            const latestAge = validAges[validAges.length - 1];
+            const avgAge = validAges.reduce((a, b) => a + b, 0) / validAges.length;
+            const minDelta = Math.min(...validDeltas);
+            const maxDelta = Math.max(...validDeltas);
+            const avgDelta = validDeltas.reduce((a, b) => a + b, 0) / validDeltas.length;
+            const currentDelta = validDeltas[validDeltas.length - 1];
+
+            document.getElementById(`${prefix}-count`).textContent = count;
+            document.getElementById(`${prefix}-latest`).textContent = latestAge.toFixed(1) + ' years';
+            document.getElementById(`${prefix}-avg`).textContent = avgAge.toFixed(1) + ' years';
+
+            const bestDeltaEl = document.getElementById(`${prefix}-best`);
+            bestDeltaEl.textContent = (minDelta >= 0 ? '+' : '') + minDelta.toFixed(1) + ' years';
+            bestDeltaEl.className = 'value ' + (minDelta < 0 ? 'positive' : 'negative');
+
+            const worstDeltaEl = document.getElementById(`${prefix}-worst`);
+            worstDeltaEl.textContent = (maxDelta >= 0 ? '+' : '') + maxDelta.toFixed(1) + ' years';
+            worstDeltaEl.className = 'value ' + (maxDelta < 0 ? 'positive' : 'negative');
+
+            const avgDeltaEl = document.getElementById(`${prefix}-avg-delta`);
+            avgDeltaEl.textContent = (avgDelta >= 0 ? '+' : '') + avgDelta.toFixed(1) + ' years';
+            avgDeltaEl.className = 'value ' + (avgDelta < 0 ? 'positive' : 'negative');
+
+            const currentDeltaEl = document.getElementById(`${prefix}-current`);
+            currentDeltaEl.textContent = (currentDelta >= 0 ? '+' : '') + currentDelta.toFixed(1) + ' years';
+            currentDeltaEl.className = 'value ' + (currentDelta < 0 ? 'positive' : 'negative');
+        }
+
+        calculateStats(bortzBioAges, bortzDeltas, 'bortz');
+        calculateStats(levinePhenoAges, levineDeltas, 'levine');
+    </script>
+</body>
+</html>
