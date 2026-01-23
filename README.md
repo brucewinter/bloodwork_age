@@ -1,13 +1,19 @@
 # Bloodwork Biological Age Calculator
 
-A Python toolkit for processing bloodwork data and calculating biological age using the [Bortz Blood Age Calculator](https://www.longevity-tools.com/humanitys-bortz-blood-age) from Longevity Tools.
+A Python toolkit for processing bloodwork data and calculating biological age using two validated calculators:
+- [Bortz Blood Age Calculator](https://www.longevity-tools.com/humanitys-bortz-blood-age) (22 biomarkers)
+- [Levine PhenoAge Calculator](https://www.longevity-tools.com/levine-pheno-age) (9 biomarkers)
 
 ## Features
 
-- Generate Bortz Calculator URLs from CSV bloodwork data
+- Generate Calculator URLs from CSV bloodwork data (Bortz and/or Levine)
 - Support for 40+ biomarker aliases and variations
 - Batch processing for historical trend analysis
-- Interactive HTML dashboard with Chart.js visualization
+- Interactive HTML dashboards with Chart.js visualization
+- Combined dashboard comparing both calculators
+- Automatic chronological age calculation from birthdate
+- Age delta tracking (biological/phenotypic age vs chronological age)
+- Selenium automation for extracting results
 - Comprehensive data validation and error reporting
 - Configurable file paths and logging
 
@@ -17,13 +23,19 @@ A Python toolkit for processing bloodwork data and calculating biological age us
 
 **PowerShell (Windows):**
 ```powershell
-# Run complete pipeline - CSV to visualization
+# Run complete pipeline - both calculators (default)
 .\Run-BloodworkAnalysis.ps1
+
+# Run only Bortz Blood Age Calculator
+.\Run-BloodworkAnalysis.ps1 -Calculator Bortz
+
+# Run only Levine PhenoAge Calculator
+.\Run-BloodworkAnalysis.ps1 -Calculator Levine
 
 # With custom CSV file
 .\Run-BloodworkAnalysis.ps1 -InputCsv "my_bloodwork.csv"
 
-# Skip Selenium automation (if age_history.csv exists)
+# Skip Selenium automation (if CSV files exist)
 .\Run-BloodworkAnalysis.ps1 -SkipSelenium
 
 # Run in headless mode (no browser GUI)
@@ -33,14 +45,17 @@ A Python toolkit for processing bloodwork data and calculating biological age us
 .\Run-BloodworkAnalysis.ps1 -VerboseLogging
 
 # Combine options
-.\Run-BloodworkAnalysis.ps1 -InputCsv "data.csv" -Headless -VerboseLogging
+.\Run-BloodworkAnalysis.ps1 -Calculator Both -InputCsv "data.csv" -Headless -VerboseLogging
 
 # Get help documentation
 .\Run-BloodworkAnalysis.ps1 -Help
 Get-Help .\Run-BloodworkAnalysis.ps1 -Full
 
-# Quick visualization update only
+# Quick visualization update only (combined dashboard)
 .\Quick-Visualize.ps1
+
+# Quick visualization for single calculator
+.\Quick-Visualize.ps1 -Calculator Bortz
 ```
 
 **Batch File (Windows - Simple):**
@@ -53,9 +68,9 @@ run.bat my_bloodwork.csv
 ```
 
 The automated scripts will:
-1. Generate Bortz Calculator URLs from your CSV
-2. Automatically extract biological ages using Selenium
-3. Generate interactive dual-chart visualization
+1. Generate Calculator URLs from your CSV (Bortz and/or Levine)
+2. Automatically extract biological/phenotypic ages using Selenium
+3. Generate interactive visualization dashboard (combined or single calculator)
 4. Open the dashboard in your browser
 
 ### Configuration
@@ -259,6 +274,109 @@ python visualize_age.py --verbose
 - `--template PATH`: HTML template file (default: age_trend_template.html)
 - `--verbose`: Enable detailed logging
 
+### Levine PhenoAge Calculator Scripts
+
+#### `generate_levine_url.py`
+
+Generate a single Levine PhenoAge Calculator URL with the latest biomarker values.
+
+**Usage:**
+```bash
+# Basic usage
+python generate_levine_url.py
+
+# With custom date cutoff
+python generate_levine_url.py --date 2024-06-30
+
+# Custom file paths
+python generate_levine_url.py --input data.csv --output levine_url.txt
+
+# Verbose logging
+python generate_levine_url.py --verbose
+```
+
+**Options:**
+- `--date YYYY-MM-DD`: Use only data on or before this date
+- `--input PATH`: Input CSV file (default: bloodwork.csv)
+- `--output PATH`: Output URL file (default: levine_url.txt)
+- `--verbose`: Enable detailed logging
+
+#### `generate_levine_batch_urls.py`
+
+Generate Levine Calculator URLs for all unique measurement dates.
+
+**Usage:**
+```bash
+# Basic usage
+python generate_levine_batch_urls.py
+
+# Custom file paths
+python generate_levine_batch_urls.py --input data.csv --output levine_urls.json
+
+# Verbose logging
+python generate_levine_batch_urls.py --verbose
+```
+
+**Options:**
+- `--input PATH`: Input CSV file (default: bloodwork.csv)
+- `--output PATH`: Output JSON file (default: levine_batch_urls.json)
+- `--verbose`: Enable detailed logging
+
+#### `process_levine_batch_urls.py`
+
+Automatically extract phenotypic ages from Levine Calculator URLs using Selenium.
+
+**Usage:**
+```bash
+# Basic usage
+python process_levine_batch_urls.py
+
+# Headless mode (no browser window)
+python process_levine_batch_urls.py --headless
+
+# Custom wait time
+python process_levine_batch_urls.py --wait 15
+
+# Custom file paths
+python process_levine_batch_urls.py --input levine_urls.json --output levine_ages.csv
+
+# Verbose logging
+python process_levine_batch_urls.py --verbose
+```
+
+**Options:**
+- `--input PATH`: Input batch URLs JSON (default: levine_batch_urls.json)
+- `--output PATH`: Output CSV file (default: levine_age_history.csv)
+- `--wait N`: Seconds to wait for page load (default: 10)
+- `--headless`: Run browser in headless mode
+- `--verbose`: Enable detailed logging
+
+#### `visualize_combined_age.py`
+
+Create combined HTML visualization comparing Bortz and Levine calculators.
+
+**Usage:**
+```bash
+# Basic usage
+python visualize_combined_age.py
+
+# Custom file paths
+python visualize_combined_age.py --bortz age_history.csv --levine levine_age_history.csv
+
+# Custom output and template
+python visualize_combined_age.py --output combined_dashboard.html --template custom_template.html
+
+# Verbose logging
+python visualize_combined_age.py --verbose
+```
+
+**Options:**
+- `--bortz PATH`: Input Bortz age history CSV (default: age_history.csv)
+- `--levine PATH`: Input Levine age history CSV (default: levine_age_history.csv)
+- `--output PATH`: Output HTML file (default: combined_age_trend.html)
+- `--template PATH`: HTML template file (default: combined_age_trend_template.html)
+- `--verbose`: Enable detailed logging
+
 ### `debug_biomarkers.py`
 
 Analyze and validate biomarker data for debugging.
@@ -285,6 +403,8 @@ python debug_biomarkers.py --verbose
 - `--verbose`: Enable detailed logging
 
 ## Supported Biomarkers
+
+### Bortz Blood Age Calculator (22 biomarkers)
 
 The toolkit recognizes 40+ biomarker names and aliases, including:
 
@@ -313,46 +433,84 @@ The toolkit recognizes 40+ biomarker names and aliases, including:
 **Vitamins:**
 - Vitamin D (25-OH)
 
-See `biomarkers.py` for the complete mapping.
+See `biomarkers.py` for the complete Bortz mapping.
+
+### Levine PhenoAge Calculator (9 biomarkers + age)
+
+**Required biomarkers:**
+- Albumin (g/dL)
+- Creatinine (mg/dL)
+- Glucose (mg/dL)
+- hsCRP (mg/L)
+- Lymphocyte % (%)
+- MCV (fL)
+- RDW (%)
+- ALP (U/L)
+- WBC (10^9/L)
+- Age (calculated automatically from birthdate)
+
+See `levine_biomarkers.py` for the complete Levine mapping.
 
 ## File Structure
 
 ```
 bloodwork_age/
 ├── Core Python Scripts
-│   ├── config.py                    # Configuration (birthdate, settings)
-│   ├── biomarkers.py                # Shared biomarker mappings and utilities
-│   ├── logger_config.py             # Logging configuration
-│   ├── generate_calculator_url.py  # Single URL generator
-│   ├── generate_batch_urls.py      # Batch URL generator
-│   ├── process_batch_urls.py       # Selenium automation for age extraction
-│   ├── visualize_age.py            # HTML visualization generator
-│   └── debug_biomarkers.py         # Data validation utility
+│   ├── config.py                         # Configuration (birthdate, settings)
+│   ├── biomarkers.py                     # Bortz biomarker mappings and utilities
+│   ├── levine_biomarkers.py              # Levine biomarker mappings and validation
+│   ├── logger_config.py                  # Logging configuration
+│   │
+│   ├── Bortz Blood Age Calculator
+│   │   ├── generate_calculator_url.py    # Single Bortz URL generator
+│   │   ├── generate_batch_urls.py        # Batch Bortz URL generator
+│   │   ├── process_batch_urls.py         # Selenium automation for Bortz
+│   │   └── visualize_age.py              # Bortz visualization generator
+│   │
+│   ├── Levine PhenoAge Calculator
+│   │   ├── generate_levine_url.py        # Single Levine URL generator
+│   │   ├── generate_levine_batch_urls.py # Batch Levine URL generator
+│   │   └── process_levine_batch_urls.py  # Selenium automation for Levine
+│   │
+│   ├── Combined Visualization
+│   │   └── visualize_combined_age.py     # Combined dashboard generator
+│   │
+│   └── debug_biomarkers.py               # Data validation utility
 │
 ├── Automation Scripts
-│   ├── Run-BloodworkAnalysis.ps1   # Complete workflow automation (PowerShell)
-│   ├── Quick-Visualize.ps1         # Quick visualization update (PowerShell)
-│   ├── run.bat                     # Simple batch file workflow
-│   ├── open_batch_urls.py          # Semi-automated browser helper
-│   └── inspect_page.py             # Page inspection utility
+│   ├── Run-BloodworkAnalysis.ps1         # Complete workflow automation (PowerShell)
+│   ├── Quick-Visualize.ps1               # Quick visualization update (PowerShell)
+│   ├── run.bat                           # Simple batch file workflow
+│   ├── open_batch_urls.py                # Semi-automated browser helper
+│   └── inspect_page.py                   # Page inspection utility
 │
 ├── Templates & Tests
-│   ├── age_trend_template.html     # HTML template for visualization
-│   └── test_biomarkers.py          # Unit tests (22 tests)
+│   ├── age_trend_template.html           # Bortz visualization template
+│   ├── combined_age_trend_template.html  # Combined dashboard template
+│   └── test_biomarkers.py                # Unit tests (22 tests)
 │
 ├── Data Files (input)
-│   └── bloodwork.csv               # Your input data (gitignored)
+│   └── bloodwork.csv                     # Your input data (gitignored)
 │
 ├── Generated Files (output - gitignored)
-│   ├── output_url.txt              # Single calculator URL
-│   ├── batch_urls.json             # All historical URLs
-│   ├── age_history.csv             # Extracted biological ages
-│   └── age_trend.html              # Interactive dashboard
+│   ├── Bortz Output
+│   │   ├── output_url.txt                # Single Bortz calculator URL
+│   │   ├── batch_urls.json               # Bortz historical URLs
+│   │   ├── age_history.csv               # Extracted biological ages
+│   │   └── age_trend.html                # Bortz dashboard
+│   │
+│   ├── Levine Output
+│   │   ├── levine_url.txt                # Single Levine calculator URL
+│   │   ├── levine_batch_urls.json        # Levine historical URLs
+│   │   └── levine_age_history.csv        # Extracted phenotypic ages
+│   │
+│   └── Combined Output
+│       └── combined_age_trend.html       # Combined dashboard
 │
 └── Documentation
-    ├── README.md                    # This file
-    ├── REFACTORING_SUMMARY.md      # Development history
-    └── requirements.txt             # Python dependencies
+    ├── README.md                         # This file
+    ├── REFACTORING_SUMMARY.md            # Development history
+    └── requirements.txt                  # Python dependencies
 ```
 
 ## Data Format
