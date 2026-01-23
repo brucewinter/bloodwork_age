@@ -13,7 +13,56 @@ A Python toolkit for processing bloodwork data and calculating biological age us
 
 ## Quick Start
 
-### 1. Prepare Your Data
+### Automated Workflow (Recommended)
+
+**PowerShell (Windows):**
+```powershell
+# Run complete pipeline - CSV to visualization
+.\Run-BloodworkAnalysis.ps1
+
+# With custom CSV file
+.\Run-BloodworkAnalysis.ps1 -InputCsv "my_bloodwork.csv"
+
+# Skip Selenium automation (if age_history.csv exists)
+.\Run-BloodworkAnalysis.ps1 -SkipSelenium
+
+# Run in headless mode (no browser GUI)
+.\Run-BloodworkAnalysis.ps1 -Headless
+
+# Quick visualization update only
+.\Quick-Visualize.ps1
+```
+
+**Batch File (Windows - Simple):**
+```batch
+REM Run with default bloodwork.csv
+run.bat
+
+REM Run with custom CSV
+run.bat my_bloodwork.csv
+```
+
+The automated scripts will:
+1. Generate Bortz Calculator URLs from your CSV
+2. Automatically extract biological ages using Selenium
+3. Generate interactive dual-chart visualization
+4. Open the dashboard in your browser
+
+### Configuration
+
+**Important:** Before running, update your birthdate in `config.py`:
+
+```python
+BIRTHDATE = "1958-07-08"  # Update with your actual birthdate
+```
+
+This enables automatic chronological age calculation for all tests.
+
+### Manual Step-by-Step
+
+If you prefer manual control:
+
+#### 1. Prepare Your Data
 
 Create a CSV file named `bloodwork.csv` with the following columns:
 
@@ -25,7 +74,9 @@ Cholesterol,180,mg/dL,2024-01-15
 ...
 ```
 
-### 2. Generate Calculator URL
+**Note:** Age is now calculated automatically from your birthdate in `config.py`. Don't include Age in your CSV.
+
+#### 2. Generate Calculator URL
 
 ```bash
 python generate_calculator_url.py
@@ -33,7 +84,7 @@ python generate_calculator_url.py
 
 This creates `output_url.txt` containing the Bortz Calculator URL with your latest biomarker values.
 
-### 3. Get Historical URLs
+#### 3. Get Historical URLs
 
 ```bash
 python generate_batch_urls.py
@@ -41,15 +92,89 @@ python generate_batch_urls.py
 
 This generates `batch_urls.json` with URLs for each measurement date in your data.
 
-### 4. Visualize Trends
+#### 4. Extract Biological Ages (Automated)
 
-After manually entering biological ages into `age_history.csv`:
+```bash
+python process_batch_urls.py
+```
+
+This uses Selenium to automatically open each URL and extract the biological age, saving results to `age_history.csv`.
+
+#### 5. Visualize Trends
 
 ```bash
 python visualize_age.py
 ```
 
-This creates `age_trend.html` - an interactive dashboard showing your biological age over time.
+This creates `age_trend.html` - an interactive dashboard with:
+- Biological age vs chronological age over time
+- Age delta chart (biological - chronological)
+- Statistics and trend analysis
+
+## Automation Scripts
+
+### `Run-BloodworkAnalysis.ps1` (Recommended)
+
+Complete pipeline automation with error handling, progress reporting, and colored output.
+
+**Features:**
+- Validates configuration and dependencies
+- Runs all steps in sequence
+- Detailed progress reporting
+- Error handling with helpful messages
+- Optional verbose logging and headless mode
+
+**Usage:**
+```powershell
+# Basic usage - complete pipeline
+.\Run-BloodworkAnalysis.ps1
+
+# With custom CSV file
+.\Run-BloodworkAnalysis.ps1 -InputCsv "my_data.csv"
+
+# Skip URL generation (use existing batch_urls.json)
+.\Run-BloodworkAnalysis.ps1 -SkipUrlGeneration
+
+# Skip Selenium (use existing age_history.csv)
+.\Run-BloodworkAnalysis.ps1 -SkipSelenium
+
+# Headless browser automation (no GUI)
+.\Run-BloodworkAnalysis.ps1 -Headless
+
+# Verbose logging
+.\Run-BloodworkAnalysis.ps1 -Verbose
+
+# Combine options
+.\Run-BloodworkAnalysis.ps1 -InputCsv "data.csv" -Headless -Verbose
+```
+
+### `Quick-Visualize.ps1`
+
+Fast visualization regeneration when you only need to update the dashboard.
+
+**Usage:**
+```powershell
+.\Quick-Visualize.ps1
+```
+
+**Use cases:**
+- After updating config.py (e.g., birthdate correction)
+- After modifying the HTML template
+- After manually editing age_history.csv
+- Quick refresh without rerunning Selenium
+
+### `run.bat`
+
+Simple batch file for quick runs without parameters.
+
+**Usage:**
+```batch
+REM With default bloodwork.csv
+run.bat
+
+REM With custom CSV file
+run.bat my_bloodwork.csv
+```
 
 ## Scripts Overview
 
@@ -184,20 +309,40 @@ See `biomarkers.py` for the complete mapping.
 
 ```
 bloodwork_age/
-├── biomarkers.py                 # Shared biomarker mappings and utilities
-├── logger_config.py              # Logging configuration
-├── generate_calculator_url.py   # Single URL generator
-├── generate_batch_urls.py       # Batch URL generator
-├── visualize_age.py             # HTML visualization generator
-├── debug_biomarkers.py          # Data validation utility
-├── age_trend_template.html      # HTML template for visualization
-├── test_biomarkers.py           # Unit tests
-├── bloodwork.csv                # Your input data (gitignored)
-├── age_history.csv              # Biological age results
-├── output_url.txt               # Generated URL (gitignored)
-├── batch_urls.json              # Generated batch URLs (gitignored)
-├── age_trend.html               # Generated visualization (gitignored)
-└── README.md                    # This file
+├── Core Python Scripts
+│   ├── config.py                    # Configuration (birthdate, settings)
+│   ├── biomarkers.py                # Shared biomarker mappings and utilities
+│   ├── logger_config.py             # Logging configuration
+│   ├── generate_calculator_url.py  # Single URL generator
+│   ├── generate_batch_urls.py      # Batch URL generator
+│   ├── process_batch_urls.py       # Selenium automation for age extraction
+│   ├── visualize_age.py            # HTML visualization generator
+│   └── debug_biomarkers.py         # Data validation utility
+│
+├── Automation Scripts
+│   ├── Run-BloodworkAnalysis.ps1   # Complete workflow automation (PowerShell)
+│   ├── Quick-Visualize.ps1         # Quick visualization update (PowerShell)
+│   ├── run.bat                     # Simple batch file workflow
+│   ├── open_batch_urls.py          # Semi-automated browser helper
+│   └── inspect_page.py             # Page inspection utility
+│
+├── Templates & Tests
+│   ├── age_trend_template.html     # HTML template for visualization
+│   └── test_biomarkers.py          # Unit tests (22 tests)
+│
+├── Data Files (input)
+│   └── bloodwork.csv               # Your input data (gitignored)
+│
+├── Generated Files (output - gitignored)
+│   ├── output_url.txt              # Single calculator URL
+│   ├── batch_urls.json             # All historical URLs
+│   ├── age_history.csv             # Extracted biological ages
+│   └── age_trend.html              # Interactive dashboard
+│
+└── Documentation
+    ├── README.md                    # This file
+    ├── REFACTORING_SUMMARY.md      # Development history
+    └── requirements.txt             # Python dependencies
 ```
 
 ## Data Format
