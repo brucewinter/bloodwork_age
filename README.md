@@ -377,6 +377,42 @@ python visualize_combined_age.py --verbose
 - `--template PATH`: HTML template file (default: combined_age_trend_template.html)
 - `--verbose`: Enable detailed logging
 
+### `convert_siphox_to_pdf.py`
+
+Convert Siphox CSV data to individual LabCorp-style PDF reports.
+
+This script reads the wide-format Siphox CSV export and generates separate professional PDF reports for each test date, formatted similar to LabCorp lab reports. Each PDF includes organized biomarker results, reference ranges, and flags for out-of-range values.
+
+**Usage:**
+```bash
+# Basic usage
+python convert_siphox_to_pdf.py
+
+# Custom input and output directory
+python convert_siphox_to_pdf.py --input siphox_data.csv --output-dir reports/
+
+# Verbose logging
+python convert_siphox_to_pdf.py --verbose
+```
+
+**Options:**
+- `--input PATH`: Path to Siphox CSV file (default: siphox_2025_08b.csv)
+- `--output-dir PATH`: Directory to save PDF reports (default: siphox_reports/)
+- `--verbose`: Enable detailed logging
+
+**Features:**
+- Generates one PDF per test date (e.g., LabReport_2024-08-08.pdf)
+- Groups biomarkers by category (Heart Health, Metabolic Health, etc.)
+- Includes reference ranges (Optimal, Good, Fair)
+- Flags out-of-range values (H = High, L = Low)
+- Professional LabCorp-style formatting
+- Ready for import into medical databases
+
+**Output format:**
+- PDF files named: `LabReport_YYYY-MM-DD.pdf`
+- Each report includes: Collection Date, Test Results Table, Reference Ranges, Flags
+- Color-coded flags: Red for High, Blue for Low
+
 ### `debug_biomarkers.py`
 
 Analyze and validate biomarker data for debugging.
@@ -475,6 +511,9 @@ bloodwork_age/
 │   ├── Combined Visualization
 │   │   └── visualize_combined_age.py     # Combined dashboard generator
 │   │
+│   ├── Siphox Integration
+│   │   └── convert_siphox_to_pdf.py      # Convert Siphox CSV to LabCorp-style PDFs
+│   │
 │   └── debug_biomarkers.py               # Data validation utility
 │
 ├── Automation Scripts
@@ -490,7 +529,8 @@ bloodwork_age/
 │   └── test_biomarkers.py                # Unit tests (22 tests)
 │
 ├── Data Files (input)
-│   └── bloodwork.csv                     # Your input data (gitignored)
+│   ├── bloodwork.csv                     # Your input data (gitignored)
+│   └── siphox_*.csv                      # Siphox export data (gitignored)
 │
 ├── Generated Files (output - gitignored)
 │   ├── Bortz Output
@@ -504,8 +544,11 @@ bloodwork_age/
 │   │   ├── levine_batch_urls.json        # Levine historical URLs
 │   │   └── levine_age_history.csv        # Extracted phenotypic ages
 │   │
-│   └── Combined Output
-│       └── combined_age_trend.html       # Combined dashboard
+│   ├── Combined Output
+│   │   └── combined_age_trend.html       # Combined dashboard
+│   │
+│   └── Siphox Reports (gitignored)
+│       └── LabReport_YYYY-MM-DD.pdf      # Individual LabCorp-style PDF reports
 │
 └── Documentation
     ├── README.md                         # This file

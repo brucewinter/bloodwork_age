@@ -19,5 +19,8 @@
 # Uncomment if you want to run tests with pytest:
 # pytest>=7.0.0
 
-# Browser automation (for process_batch_urls.py)
+# Browser automation (for process_batch_urls.py and process_levine_batch_urls.py)
 selenium>=4.0.0
+
+# PDF generation (for convert_siphox_to_pdf.py)
+reportlab>=3.6.0

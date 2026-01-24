@@ -17,6 +17,10 @@ levine_age_history.csv
 # Combined visualization
 combined_age_trend.html
 
+# Siphox data and generated reports
+siphox_*.csv
+siphox_reports/
+
 # Backup files
 *~
 *.bak
