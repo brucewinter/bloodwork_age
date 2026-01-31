@@ -18,8 +18,6 @@ from typing import Set, List, Dict
 from datetime import datetime
 
 from logger_config import setup_logger
-from generate_batch_urls import get_all_bortz_urls
-from generate_levine_batch_urls import get_all_levine_urls
 
 logger = setup_logger(__name__)
 
@@ -200,11 +198,11 @@ to process only the new URLs.
 
             # Generate URLs for ALL dates (generator handles filtering internally)
             # but we'll need to filter the output
-            from generate_batch_urls import get_all_bortz_urls
+            from generate_batch_urls import get_all_urls
 
             # Temporarily save to get full output
             temp_file = 'temp_batch_urls.json'
-            all_urls = get_all_bortz_urls(args.input, temp_file)
+            all_urls = get_all_urls(args.input, temp_file)
 
             if all_urls:
                 # Filter to only new dates
@@ -213,7 +211,7 @@ to process only the new URLs.
                 if new_urls:
                     # Append to existing batch_urls.json
                     if append_to_batch_urls('batch_urls.json', new_urls):
-                        logger.info(f"✓ Added {len(new_urls)} new Bortz URLs")
+                        logger.info(f"[OK] Added {len(new_urls)} new Bortz URLs")
                     else:
                         logger.error("Failed to append Bortz URLs")
                 else:
@@ -223,7 +221,7 @@ to process only the new URLs.
             if os.path.exists(temp_file):
                 os.remove(temp_file)
         else:
-            logger.info("✓ No new dates for Bortz - already up to date")
+            logger.info("[OK] No new dates for Bortz - already up to date")
 
     # Process Levine
     if run_levine:
@@ -248,7 +246,7 @@ to process only the new URLs.
                 if new_urls:
                     # Append to existing levine_batch_urls.json
                     if append_to_batch_urls('levine_batch_urls.json', new_urls):
-                        logger.info(f"✓ Added {len(new_urls)} new Levine URLs")
+                        logger.info(f"[OK] Added {len(new_urls)} new Levine URLs")
                     else:
                         logger.error("Failed to append Levine URLs")
                 else:
@@ -258,7 +256,7 @@ to process only the new URLs.
             if os.path.exists(temp_file):
                 os.remove(temp_file)
         else:
-            logger.info("✓ No new dates for Levine - already up to date")
+            logger.info("[OK] No new dates for Levine - already up to date")
 
     # Summary
     logger.info("\n=== Summary ===")
