@@ -12,6 +12,7 @@ Requirements:
 
 import json
 import csv
+import os
 import time
 import argparse
 from typing import List, Dict, Optional
@@ -30,7 +31,8 @@ def process_levine_urls_automated(
     batch_file: str,
     output_file: str,
     wait_time: int = 10,
-    headless: bool = False
+    headless: bool = False,
+    incremental: bool = False
 ) -> bool:
     """
     Process Levine batch URLs and extract phenotypic age results.
@@ -40,6 +42,7 @@ def process_levine_urls_automated(
         output_file: Path to save results CSV
         wait_time: Seconds to wait for page load (default: 10)
         headless: Run browser in headless mode (default: False)
+        incremental: Only process new dates not in output_file (default: False)
 
     Returns:
         True if successful, False otherwise
@@ -48,13 +51,34 @@ def process_levine_urls_automated(
     try:
         with open(batch_file, 'r', encoding='utf-8') as f:
             urls_data = json.load(f)
-        logger.info(f"Loaded {len(urls_data)} Levine URLs to process")
+        logger.info(f"Loaded {len(urls_data)} URLs from {batch_file}")
     except FileNotFoundError:
         logger.error(f"File not found: {batch_file}")
         return False
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON: {e}")
         return False
+
+    # If incremental mode, filter out already-processed dates
+    if incremental and os.path.exists(output_file):
+        processed_dates = set()
+        try:
+            with open(output_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    processed_dates.add(row['Measurement Date'])
+            logger.info(f"Found {len(processed_dates)} already-processed dates in {output_file}")
+
+            # Filter to only new dates
+            original_count = len(urls_data)
+            urls_data = [entry for entry in urls_data if entry['date'] not in processed_dates]
+            logger.info(f"Incremental mode: processing {len(urls_data)}/{original_count} new dates")
+
+            if not urls_data:
+                logger.info("No new dates to process!")
+                return True
+        except Exception as e:
+            logger.warning(f"Could not read existing results, will process all: {e}")
 
     # Setup Selenium WebDriver
     options = webdriver.ChromeOptions()
@@ -148,11 +172,34 @@ def process_levine_urls_automated(
     # Save results
     if results:
         try:
-            with open(output_file, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=['Measurement Date', 'Levine Phenotypic Age', 'Notes'])
-                writer.writeheader()
-                writer.writerows(results)
-            logger.info(f"Results saved to: {output_file}")
+            # In incremental mode, append to existing file
+            if incremental and os.path.exists(output_file):
+                # Read existing data
+                existing_results = []
+                with open(output_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    existing_results = list(reader)
+
+                # Append new results
+                all_results = existing_results + results
+
+                # Sort by date
+                from datetime import datetime
+                all_results.sort(key=lambda x: datetime.strptime(x['Measurement Date'], '%Y-%m-%d'))
+
+                # Write all results
+                with open(output_file, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=['Measurement Date', 'Levine Phenotypic Age', 'Notes'])
+                    writer.writeheader()
+                    writer.writerows(all_results)
+                logger.info(f"Appended {len(results)} new results to: {output_file}")
+            else:
+                # Normal mode - overwrite file
+                with open(output_file, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=['Measurement Date', 'Levine Phenotypic Age', 'Notes'])
+                    writer.writeheader()
+                    writer.writerows(results)
+                logger.info(f"Results saved to: {output_file}")
             return True
         except IOError as e:
             logger.error(f"Failed to write output file: {e}")
@@ -205,6 +252,11 @@ Note: Requires ChromeDriver to be installed and in PATH.
         action='store_true',
         help='Enable verbose logging'
     )
+    parser.add_argument(
+        '--incremental',
+        action='store_true',
+        help='Only process new dates not already in output file (append mode)'
+    )
 
     args = parser.parse_args()
 
@@ -214,7 +266,7 @@ Note: Requires ChromeDriver to be installed and in PATH.
     logger.warning("NOTE: This script uses the same page structure detection as Bortz.")
     logger.warning("If extraction fails, the page structure may have changed.")
 
-    success = process_levine_urls_automated(args.input, args.output, args.wait, args.headless)
+    success = process_levine_urls_automated(args.input, args.output, args.wait, args.headless, args.incremental)
 
     if not success:
         exit(1)

@@ -19,6 +19,33 @@ A Python toolkit for processing bloodwork data and calculating biological age us
 
 ## Quick Start
 
+### Incremental Updates (Adding New Data)
+
+When you have new bloodwork measurements and want to add them without reprocessing everything:
+
+```bash
+# 1. Update bloodwork.csv with new measurements
+
+# 2. Generate URLs for new dates only and append to existing JSON files
+python update_incremental.py
+
+# 3. Process new URLs with Selenium (appends to existing CSV files)
+python process_batch_urls.py --incremental
+python process_levine_batch_urls.py --incremental
+
+# 4. Regenerate visualizations
+.\Quick-Visualize.ps1
+```
+
+**How it works:**
+- `update_incremental.py` identifies dates not yet in batch_urls.json
+- Generates URLs only for new dates
+- Appends new URLs to existing JSON files
+- Process scripts with `--incremental` flag skip already-processed dates
+- Results are appended (not overwritten) to age_history.csv files
+
+This saves significant time by avoiding reprocessing of historical data.
+
 ### Automated Workflow (Recommended)
 
 **PowerShell (Windows):**
@@ -331,6 +358,9 @@ Automatically extract phenotypic ages from Levine Calculator URLs using Selenium
 # Basic usage
 python process_levine_batch_urls.py
 
+# Incremental mode - append new results only
+python process_levine_batch_urls.py --incremental
+
 # Headless mode (no browser window)
 python process_levine_batch_urls.py --headless
 
@@ -349,6 +379,7 @@ python process_levine_batch_urls.py --verbose
 - `--output PATH`: Output CSV file (default: levine_age_history.csv)
 - `--wait N`: Seconds to wait for page load (default: 10)
 - `--headless`: Run browser in headless mode
+- `--incremental`: Only process new dates, append to existing CSV
 - `--verbose`: Enable detailed logging
 
 #### `visualize_combined_age.py`
@@ -412,6 +443,44 @@ python convert_siphox_to_pdf.py --verbose
 - PDF files named: `LabReport_YYYY-MM-DD.pdf`
 - Each report includes: Collection Date, Test Results Table, Reference Ranges, Flags
 - Color-coded flags: Red for High, Blue for Low
+
+### `update_incremental.py`
+
+Identify and process only new measurement dates without reprocessing historical data.
+
+This script analyzes your CSV file and existing batch_urls.json files to determine
+which dates are new. It then generates URLs only for those dates and appends them
+to the existing JSON files.
+
+**Usage:**
+```bash
+# Basic usage - updates both calculators
+python update_incremental.py
+
+# Update specific calculator
+python update_incremental.py --calculator Bortz
+python update_incremental.py --calculator Levine
+
+# Custom input file
+python update_incremental.py --input new_bloodwork.csv
+
+# Verbose logging
+python update_incremental.py --verbose
+```
+
+**Options:**
+- `--input PATH`: Path to bloodwork CSV (default: bloodwork.csv)
+- `--calculator CALC`: Which calculator to update: Bortz, Levine, or Both (default: Both)
+- `--verbose`: Enable detailed logging
+
+**Workflow:**
+1. Compares CSV dates against existing batch_urls.json
+2. Identifies new dates not yet processed
+3. Generates URLs only for new dates
+4. Appends new URLs to existing JSON files
+5. Reports summary of what needs processing
+
+After running, use process scripts with `--incremental` flag to extract ages.
 
 ### `debug_biomarkers.py`
 
