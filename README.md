@@ -21,17 +21,41 @@ A Python toolkit for processing bloodwork data and calculating biological age us
 
 ### Incremental Updates (Adding New Data)
 
-When you have new bloodwork measurements and want to add them without reprocessing everything:
+**Simple One-Command Update:**
+
+```batch
+REM Windows Batch File (simplest)
+update.bat biomarkers-export-2026-02-25.csv
+
+REM PowerShell (more features)
+.\Update-Incremental.ps1 biomarkers-export-2026-02-25.csv
+```
+
+That's it! One command runs all 4 steps automatically.
+
+**PowerShell Options:**
+```powershell
+# Update specific calculator only
+.\Update-Incremental.ps1 data.csv -Calculator Bortz
+
+# With verbose logging
+.\Update-Incremental.ps1 data.csv -VerboseLogging
+
+# Skip opening dashboard
+.\Update-Incremental.ps1 data.csv -NoVisualization
+```
+
+**Manual Step-by-Step (if you prefer):**
 
 ```bash
 # 1. Update bloodwork.csv with new measurements
 
 # 2. Generate URLs for new dates only and append to existing JSON files
-python update_incremental.py
+python update_incremental.py --input biomarkers-export-2026-02-25.csv
 
 # 3. Process new URLs with Selenium (appends to existing CSV files)
-python process_batch_urls.py --incremental
-python process_levine_batch_urls.py --incremental
+python process_batch_urls.py --incremental --headless
+python process_levine_batch_urls.py --incremental --headless
 
 # 4. Regenerate visualizations
 .\Quick-Visualize.ps1
@@ -587,7 +611,9 @@ bloodwork_age/
 │
 ├── Automation Scripts
 │   ├── Run-BloodworkAnalysis.ps1         # Complete workflow automation (PowerShell)
+│   ├── Update-Incremental.ps1            # Incremental update with CSV argument (PowerShell)
 │   ├── Quick-Visualize.ps1               # Quick visualization update (PowerShell)
+│   ├── update.bat                        # Simple incremental update (Batch)
 │   ├── run.bat                           # Simple batch file workflow
 │   ├── open_batch_urls.py                # Semi-automated browser helper
 │   └── inspect_page.py                   # Page inspection utility
